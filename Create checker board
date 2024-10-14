@@ -11,9 +11,27 @@ def create_board(canvas, rows, cols, square_size):
             y2 = y1 + square_size
             canvas.create_rectangle(x1, y1, x2, y2, fill=color)
 
+def create_pieces(canvas, rows, cols, square_size):
+    piece_radius = square_size // 2 - 5  
+    dark_square_color = "#D18B47"  
+
+    for row in range(rows):
+        for col in range(cols):
+            if (row + col) % 2 == 0:  
+                if row < 3:  
+                    draw_piece(canvas, row, col, square_size, piece_radius, "black")
+                elif row > 4:  
+                    draw_piece(canvas, row, col, square_size, piece_radius, "white")
+
+def draw_piece(canvas, row, col, square_size, radius, color):
+    x_center = col * square_size + square_size // 2
+    y_center = row * square_size + square_size // 2
+    canvas.create_oval(x_center - radius, y_center - radius,
+                       x_center + radius, y_center + radius, fill=color)
+
 def main():
     window = tk.Tk()
-    window.title("Checkers Board")
+    window.title("Checkers Board with Pieces")
 
     board_size = 8
     square_size = 60
@@ -22,6 +40,8 @@ def main():
     canvas.pack()
 
     create_board(canvas, board_size, board_size, square_size)
+
+    create_pieces(canvas, board_size, board_size, square_size)
 
     window.mainloop()
 

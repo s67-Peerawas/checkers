@@ -1,5 +1,7 @@
 import tkinter as tk
 
+selected_piece = None
+
 def create_board(canvas, rows, cols, square_size):
     colors = ["#D18B47", "#FFCE9E"]  
     for row in range(rows):
@@ -11,16 +13,18 @@ def create_board(canvas, rows, cols, square_size):
             y2 = y1 + square_size
             canvas.create_rectangle(x1, y1, x2, y2, fill=color)
 
-def create_pieces(canvas, rows, cols, square_size):
-    piece_radius = square_size // 2 - 5  
+def create_pieces(canvas, board, rows, cols, square_size):
+    piece_radius = square_size // 2 - 5 
     dark_square_color = "#D18B47"  
 
     for row in range(rows):
         for col in range(cols):
             if (row + col) % 2 == 0:  
                 if row < 3:  
+                    board[row][col] = "black"
                     draw_piece(canvas, row, col, square_size, piece_radius, "black")
                 elif row > 4:  
+                    board[row][col] = "white"
                     draw_piece(canvas, row, col, square_size, piece_radius, "white")
 
 def draw_piece(canvas, row, col, square_size, radius, color):
@@ -31,14 +35,16 @@ def draw_piece(canvas, row, col, square_size, radius, color):
     canvas.tag_bind(piece, "<Button-1>", lambda event, r=row, c=col: piece_clicked(event, r, c, canvas, square_size))
 
 def piece_clicked(event, row, col, canvas, square_size):
+    global selected_piece
     clear_highlights(canvas)  
-    possible_moves = calculate_possible_moves(row, col) 
+    selected_piece = (row, col)  
+    possible_moves = calculate_possible_moves(row, col)  
     highlight_moves(canvas, possible_moves, square_size)  
 
 def calculate_possible_moves(row, col):
     moves = []
-    if row < 3:  
-        if row + 1 < 8 and col - 1 >= 0:  
+    if row < 3: 
+        if row + 1 < 8 and col - 1 >= 0: 
             moves.append((row + 1, col - 1))
         if row + 1 < 8 and col + 1 < 8:  
             moves.append((row + 1, col + 1))
@@ -56,25 +62,55 @@ def highlight_moves(canvas, moves, square_size):
         y1 = row * square_size
         x2 = x1 + square_size
         y2 = y1 + square_size
-        canvas.create_rectangle(x1, y1, x2, y2, outline="green", width=5, tags="highlight")
+        square = canvas.create_rectangle(x1, y1, x2, y2, outline="green", width=5, tags="highlight")
+        canvas.tag_bind(square, "<Button-1>", lambda event, r=row, c=col: move_piece(r, c, canvas, square_size))
+
+def move_piece(row, col, canvas, square_size):
+    global selected_piece, board
+    if selected_piece:
+        old_row, old_col = selected_piece
+
+        clear_square(canvas, old_row, old_col, square_size)
+
+        piece_color = board[old_row][old_col]  
+        board[old_row][old_col] = None  
+        board[row][col] = piece_color 
+        draw_piece(canvas, row, col, square_size, square_size // 2 - 5, piece_color)
+
+        clear_highlights(canvas) 
+        selected_piece = None  
+
+def clear_square(canvas, row, col, square_size):
+    x1 = col * square_size
+    y1 = row * square_size
+    x2 = x1 + square_size
+    y2 = y1 + square_size
+    canvas.create_rectangle(x1, y1, x2, y2, fill=("#D18B47" if (row + col) % 2 == 0 else "#FFCE9E"))
 
 def clear_highlights(canvas):
     canvas.delete("highlight")
 
 def main():
+    global board
     window = tk.Tk()
-    window.title("Checkers with Clickable Pieces")
+    window.title("Checkers with Movable Pieces")
 
     board_size = 8
     square_size = 60
+
+    board = [[None for _ in range(board_size)] for _ in range(board_size)]
 
     canvas = tk.Canvas(window, width=board_size * square_size, height=board_size * square_size)
     canvas.pack()
 
     create_board(canvas, board_size, board_size, square_size)
 
-    create_pieces(canvas, board_size, board_size, square_size)
+    create_pieces(canvas, board, board_size, board_size, square_size)
 
+    window.mainloop()
+
+if __name__ == "__main__":
+    main()
     window.mainloop()
 
 if __name__ == "__main__":

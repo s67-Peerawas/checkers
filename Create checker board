@@ -1,10 +1,11 @@
 import tkinter as tk
 
 selected_piece = None
+current_turn = "white"  
 board = None
 
 def create_board(canvas, rows, cols, square_size):
-    colors = ["#D18B47", "#FFCE9E"] 
+    colors = ["#D18B47", "#FFCE9E"]  
     for row in range(rows):
         for col in range(cols):
             color = colors[(row + col) % 2]
@@ -39,32 +40,49 @@ def draw_piece(canvas, row, col, square_size, radius, color):
 
 def piece_clicked(event, row, col, canvas, square_size):
     global selected_piece
-    if board[row][col] is None:
-        return  
+    if board[row][col] != current_turn:
+        return
+
     clear_highlights(canvas)  
     selected_piece = (row, col) 
     possible_moves = calculate_possible_moves(row, col)  
-    highlight_moves(canvas, possible_moves, square_size)  
+    highlight_moves(canvas, possible_moves, square_size) 
+
 def calculate_possible_moves(row, col):
     moves = []
     piece_color = board[row][col]
+    opponent_color = "white" if piece_color == "black" else "black"
+
     if piece_color == "black":  
         directions = [(1, -1), (1, 1)]
+        capture_directions = [(2, -2), (2, 2)]
     elif piece_color == "white":  
         directions = [(-1, -1), (-1, 1)]
+        capture_directions = [(-2, -2), (-2, 2)]
     else:
-        directions = []
+        return moves
 
     for dr, dc in directions:
         new_row, new_col = row + dr, col + dc
-        if 0 <= new_row < 8 and 0 <= new_col < 8:
-            if board[new_row][new_col] is None:
-                moves.append((new_row, new_col))
+        if 0 <= new_row < 8 and 0 <= new_col < 8 and board[new_row][new_col] is None:
+            moves.append((new_row, new_col))
+
+    for dr, dc in capture_directions:
+        middle_row, middle_col = row + dr // 2, col + dc // 2
+        new_row, new_col = row + dr, col + dc
+        if 0 <= new_row < 8 and 0 <= new_col < 8 and board[new_row][new_col] is None:
+            if board[middle_row][middle_col] == opponent_color:
+                moves.append((new_row, new_col, middle_row, middle_col))  
+
     return moves
 
 def highlight_moves(canvas, moves, square_size):
     for move in moves:
-        row, col = move
+        if len(move) == 4:  
+            row, col, _, _ = move
+        else:
+            row, col = move
+
         x1 = col * square_size
         y1 = row * square_size
         x2 = x1 + square_size
@@ -77,9 +95,21 @@ def highlight_moves(canvas, moves, square_size):
         canvas.tag_bind(highlight, "<Button-1>", lambda event, r=row, c=col, cs=square_size: move_piece(r, c, canvas, cs))
 
 def move_piece(row, col, canvas, square_size):
-    global selected_piece, board
+    global selected_piece, board, current_turn
     if selected_piece:
         old_row, old_col = selected_piece
+
+        possible_moves = calculate_possible_moves(old_row, old_col)
+        is_capture = False
+        captured_piece = None
+        for move in possible_moves:
+            if len(move) == 4:  
+                if (row, col) == (move[0], move[1]):
+                    is_capture = True
+                    captured_piece = (move[2], move[3])
+                    break
+            elif (row, col) == (move[0], move[1]):  
+                break
 
         if (row, col) == (old_row, old_col):
             clear_highlights(canvas)
@@ -96,8 +126,15 @@ def move_piece(row, col, canvas, square_size):
 
         draw_piece(canvas, row, col, square_size, square_size // 2 - 10, piece_color)
 
+        if is_capture and captured_piece:
+            cap_row, cap_col = captured_piece
+            board[cap_row][cap_col] = None
+            clear_square(canvas, cap_row, cap_col, square_size)
+
         clear_highlights(canvas)  
-        selected_piece = None 
+        selected_piece = None  
+
+        current_turn = "white" if current_turn == "black" else "black"
 
 def clear_square(canvas, row, col, square_size):
     x1 = col * square_size
@@ -117,28 +154,18 @@ def clear_highlights(canvas):
 def main():
     global board
     window = tk.Tk()
-    window.title("Checkers with Movable Pieces")
+    window.title("Checkers with Capturing")
 
-    board_size = 8
-    square_size = 60
+    rows, cols = 8, 8  
+    square_size = 80  
 
-    board = [[None for _ in range(board_size)] for _ in range(board_size)]
-
-    canvas = tk.Canvas(
-        window,
-        width=board_size * square_size,
-        height=board_size * square_size
-    )
+    canvas = tk.Canvas(window, width=cols * square_size, height=rows * square_size)
     canvas.pack()
 
-    create_board(canvas, board_size, board_size, square_size)
+    board = [[None for _ in range(cols)] for _ in range(rows)]
 
-    create_pieces(canvas, board, board_size, board_size, square_size)
-
-    window.mainloop()
-
-if __name__ == "__main__":
-    main()
+    create_board(canvas, rows, cols, square_size)  
+    create_pieces(canvas, board, rows, cols, square_size)  
 
     window.mainloop()
 

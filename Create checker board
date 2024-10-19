@@ -3,6 +3,7 @@ import tkinter as tk
 selected_piece = None
 current_turn = "white"
 board = None
+turn_label = None  
 
 def create_board(canvas, rows, cols, square_size):
     colors = ["#D18B47", "#FFCE9E"]
@@ -147,6 +148,7 @@ def move_piece(row, col, canvas, square_size):
         selected_piece = None  
 
         current_turn = "white" if current_turn == "black" else "black"
+        turn_label.config(text=f"{current_turn.capitalize()}'s Turn")  
 
 def draw_king(canvas, row, col, square_size, color):
     piece_radius = square_size // 2 - 10 
@@ -175,7 +177,7 @@ def clear_highlights(canvas):
     canvas.delete("highlight")
 
 def main():
-    global board
+    global board, turn_label
     window = tk.Tk()
     window.title("Checkers with Capturing and Kinging")
 
@@ -189,6 +191,9 @@ def main():
 
     create_board(canvas, rows, cols, square_size)
     create_pieces(canvas, board, rows, cols, square_size)
+
+    turn_label = tk.Label(window, text=f"{current_turn.capitalize()}'s Turn", font=("Arial", 16))
+    turn_label.pack(pady=10)
 
     window.mainloop()
 

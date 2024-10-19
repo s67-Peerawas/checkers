@@ -1,11 +1,11 @@
 import tkinter as tk
 
 selected_piece = None
-current_turn = "white"  
+current_turn = "white"
 board = None
 
 def create_board(canvas, rows, cols, square_size):
-    colors = ["#D18B47", "#FFCE9E"]  
+    colors = ["#D18B47", "#FFCE9E"]
     for row in range(rows):
         for col in range(cols):
             color = colors[(row + col) % 2]
@@ -16,19 +16,18 @@ def create_board(canvas, rows, cols, square_size):
             canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="black")
 
 def create_pieces(canvas, board, rows, cols, square_size):
-    piece_radius = square_size // 2 - 10 
-
+    piece_radius = square_size // 2 - 10
     for row in range(rows):
         for col in range(cols):
-            if (row + col) % 2 == 0:  
-                if row < 3:  
+            if (row + col) % 2 == 0:
+                if row < 3:
                     board[row][col] = "black"
                     draw_piece(canvas, row, col, square_size, piece_radius, "black")
-                elif row > 4:  
+                elif row > 4:
                     board[row][col] = "white"
                     draw_piece(canvas, row, col, square_size, piece_radius, "white")
 
-def draw_piece(canvas, row, col, square_size, radius, color):
+def draw_piece(canvas, row, col, square_size, radius, color, is_king=False):
     x_center = col * square_size + square_size // 2
     y_center = row * square_size + square_size // 2
     piece = canvas.create_oval(
@@ -36,62 +35,70 @@ def draw_piece(canvas, row, col, square_size, radius, color):
         x_center + radius, y_center + radius,
         fill=color, tags=("piece", f"piece_{row}_{col}")
     )
+    if is_king:
+        crown_size = radius // 2
+        canvas.create_oval(x_center - crown_size, y_center - crown_size * 1.5,
+                           x_center + crown_size, y_center - crown_size,
+                           fill="gold", outline="")
     canvas.tag_bind(piece, "<Button-1>", lambda event, r=row, c=col: piece_clicked(event, r, c, canvas, square_size))
 
 def piece_clicked(event, row, col, canvas, square_size):
     global selected_piece
-    if board[row][col] != current_turn:
+    if board[row][col] is None or board[row][col] != current_turn:
         return
 
-    clear_highlights(canvas)  
-    selected_piece = (row, col) 
-    possible_moves = calculate_possible_moves(row, col)  
-    highlight_moves(canvas, possible_moves, square_size) 
+    clear_highlights(canvas)
+    selected_piece = (row, col)
+
+    possible_moves = calculate_possible_moves(row, col)
+
+    highlight_moves(canvas, possible_moves, square_size)
 
 def calculate_possible_moves(row, col):
     moves = []
     piece_color = board[row][col]
-    opponent_color = "white" if piece_color == "black" else "black"
+    is_king = piece_color.endswith("_king")
+    opponent_color = "white" if piece_color.startswith("black") else "black"
 
-    if piece_color == "black":  
-        directions = [(1, -1), (1, 1)]
-        capture_directions = [(2, -2), (2, 2)]
-    elif piece_color == "white":  
-        directions = [(-1, -1), (-1, 1)]
-        capture_directions = [(-2, -2), (-2, 2)]
-    else:
-        return moves
+    directions = [(1, -1), (1, 1)] if piece_color.startswith("black") else [(-1, -1), (-1, 1)]
+    if is_king:
+        directions = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
 
     for dr, dc in directions:
         new_row, new_col = row + dr, col + dc
         if 0 <= new_row < 8 and 0 <= new_col < 8 and board[new_row][new_col] is None:
             moves.append((new_row, new_col))
 
-    for dr, dc in capture_directions:
-        middle_row, middle_col = row + dr // 2, col + dc // 2
-        new_row, new_col = row + dr, col + dc
-        if 0 <= new_row < 8 and 0 <= new_col < 8 and board[new_row][new_col] is None:
-            if board[middle_row][middle_col] == opponent_color:
-                moves.append((new_row, new_col, middle_row, middle_col))  
+    for dr, dc in directions:
+        middle_row, middle_col = row + dr, col + dc
+        capture_row, capture_col = row + 2 * dr, col + 2 * dc
+        if 0 <= capture_row < 8 and 0 <= capture_col < 8:
+            if board[middle_row][middle_col] == opponent_color and board[capture_row][capture_col] is None:
+                moves.append((capture_row, capture_col, middle_row, middle_col))
 
+    print(f"Possible moves for piece at {row}, {col}: {moves}")
+    
     return moves
 
 def highlight_moves(canvas, moves, square_size):
+    clear_highlights(canvas) 
+    
     for move in moves:
-        if len(move) == 4:  
-            row, col, _, _ = move
-        else:
-            row, col = move
-
+        row, col = move[:2] 
+        
+        print(f"Highlighting move to row {row}, col {col}")
+        
         x1 = col * square_size
         y1 = row * square_size
         x2 = x1 + square_size
         y2 = y1 + square_size
+        
         highlight = canvas.create_rectangle(
             x1, y1, x2, y2,
             fill="green", stipple="gray25", outline="",
             tags="highlight"
         )
+        
         canvas.tag_bind(highlight, "<Button-1>", lambda event, r=row, c=col, cs=square_size: move_piece(r, c, canvas, cs))
 
 def move_piece(row, col, canvas, square_size):
@@ -124,7 +131,12 @@ def move_piece(row, col, canvas, square_size):
 
         clear_square(canvas, row, col, square_size)
 
-        draw_piece(canvas, row, col, square_size, square_size // 2 - 10, piece_color)
+        if piece_color == "white" and row == 0:
+            draw_king(canvas, row, col, square_size, piece_color)
+        elif piece_color == "black" and row == 7:
+            draw_king(canvas, row, col, square_size, piece_color)
+        else:
+            draw_piece(canvas, row, col, square_size, square_size // 2 - 10, piece_color)
 
         if is_capture and captured_piece:
             cap_row, cap_col = captured_piece
@@ -135,6 +147,17 @@ def move_piece(row, col, canvas, square_size):
         selected_piece = None  
 
         current_turn = "white" if current_turn == "black" else "black"
+
+def draw_king(canvas, row, col, square_size, color):
+    piece_radius = square_size // 2 - 10 
+    x_center = col * square_size + square_size // 2
+    y_center = row * square_size + square_size // 2
+    canvas.create_oval(
+        x_center - piece_radius, y_center - piece_radius,
+        x_center + piece_radius, y_center + piece_radius,
+        fill=color, tags=("piece", f"king_{row}_{col}")
+    )
+    canvas.create_text(x_center, y_center, text='K', font=("Arial", 24, "bold"), fill="yellow")
 
 def clear_square(canvas, row, col, square_size):
     x1 = col * square_size
@@ -154,18 +177,18 @@ def clear_highlights(canvas):
 def main():
     global board
     window = tk.Tk()
-    window.title("Checkers with Capturing")
+    window.title("Checkers with Capturing and Kinging")
 
-    rows, cols = 8, 8  
-    square_size = 80  
+    rows, cols = 8, 8
+    square_size = 80
 
     canvas = tk.Canvas(window, width=cols * square_size, height=rows * square_size)
     canvas.pack()
 
     board = [[None for _ in range(cols)] for _ in range(rows)]
 
-    create_board(canvas, rows, cols, square_size)  
-    create_pieces(canvas, board, rows, cols, square_size)  
+    create_board(canvas, rows, cols, square_size)
+    create_pieces(canvas, board, rows, cols, square_size)
 
     window.mainloop()
 

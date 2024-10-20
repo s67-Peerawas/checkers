@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 
 class Checkers:
     def __init__(self, master):
@@ -7,6 +7,12 @@ class Checkers:
         self.master.title("Checkers")
         self.canvas = tk.Canvas(master, width=640, height=640)
         self.canvas.pack()
+
+        self.save_button = tk.Button(master, text="Save Game", command=self.save_game)
+        self.save_button.pack(side=tk.LEFT)
+
+        self.load_button = tk.Button(master, text="Load Game", command=self.load_game)
+        self.load_button.pack(side=tk.LEFT)
 
         self.board = self.create_board()
         self.current_player = 'white'  
@@ -20,7 +26,6 @@ class Checkers:
         self.canvas.bind("<Button-1>", self.on_click)
 
     def create_board(self):
-        # Create an 8x8 board with pieces in starting positions
         board = [[None for _ in range(8)] for _ in range(8)]
         for row in range(3):
             for col in range((row % 2), 8, 2):
@@ -29,6 +34,54 @@ class Checkers:
             for col in range((row % 2), 8, 2):
                 board[row][col] = 'white' 
         return board
+
+    def save_game(self):
+        save_data = []
+        for row in self.board:
+            save_row = []
+            for piece in row:
+                if piece is None:
+                    save_row.append("0")
+                elif piece == 'white':
+                    save_row.append("1")
+                elif piece == 'black':
+                    save_row.append("2")
+                elif piece == 'white_king':
+                    save_row.append("k1")
+                elif piece == 'black_king':
+                    save_row.append("k2")
+            save_data.append(" ".join(save_row))
+
+        save_text = "\n".join(save_data)
+
+        with open("Checker_save.txt", "w") as file:
+            file.write(save_text)
+
+        messagebox.showinfo("Save Game", "Game saved successfully!")
+
+    def load_game(self):
+        try:
+            with open("Checker_save.txt", "r") as file:
+                save_data = file.readlines()
+
+            for row, line in enumerate(save_data):
+                pieces = line.strip().split(" ")
+                for col, piece in enumerate(pieces):
+                    if piece == "0":
+                        self.board[row][col] = None
+                    elif piece == "1":
+                        self.board[row][col] = 'white'
+                    elif piece == "2":
+                        self.board[row][col] = 'black'
+                    elif piece == "k1":
+                        self.board[row][col] = 'white_king'
+                    elif piece == "k2":
+                        self.board[row][col] = 'black_king'
+
+            self.draw_pieces()
+            messagebox.showinfo("Load Game", "Game loaded successfully!")
+        except FileNotFoundError:
+            messagebox.showwarning("Load Game", "No saved game found!")
 
     def draw_board(self):
         for row in range(8):
@@ -122,8 +175,8 @@ class Checkers:
     def highlight_valid_moves(self):
         for move in self.valid_moves:
             row, col = move
-            x1, y1 = col * 80, row * 80  # Align exactly to the square
-            x2, y2 = (col + 1) * 80, (row + 1) * 80  # Align exactly to the square
+            x1, y1 = col * 80, row * 80  
+            x2, y2 = (col + 1) * 80, (row + 1) * 80  
             self.canvas.create_rectangle(
                 x1, y1, x2, y2,
                 fill="green", stipple="gray25", outline="",

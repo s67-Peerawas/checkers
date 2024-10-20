@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import messagebox
 
 class Checkers:
     def __init__(self, master):
@@ -6,8 +7,9 @@ class Checkers:
         self.master.title("Checkers")
         self.canvas = tk.Canvas(master, width=640, height=640)
         self.canvas.pack()
+
         self.board = self.create_board()
-        self.current_player = 'white'  # White goes first
+        self.current_player = 'white'  
         self.selected_piece = None
         self.valid_moves = []
         self.turn_label = tk.Label(master, text=f"Current Turn: {self.current_player}", font=("Arial", 16))
@@ -22,10 +24,10 @@ class Checkers:
         board = [[None for _ in range(8)] for _ in range(8)]
         for row in range(3):
             for col in range((row % 2), 8, 2):
-                board[row][col] = 'black'  # Player Black pieces
+                board[row][col] = 'black'  
         for row in range(5, 8):
             for col in range((row % 2), 8, 2):
-                board[row][col] = 'white'  # Player White pieces
+                board[row][col] = 'white' 
         return board
 
     def draw_board(self):
@@ -64,19 +66,19 @@ class Checkers:
         row = event.y // 80
 
         if self.selected_piece:
-            # Move the piece
             if (row, col) in self.valid_moves:
                 self.move_piece(self.selected_piece, (row, col))
                 self.selected_piece = None
                 self.valid_moves = []
-                self.clear_highlight()  # Clear highlights after moving
+                self.clear_highlight() 
+                if self.check_winner():
+                    return  
                 self.switch_player()
             else:
                 self.selected_piece = None
                 self.valid_moves = []
-                self.clear_highlight()  # Clear highlights if no valid move
+                self.clear_highlight() 
         else:
-            # Select a piece
             piece = self.board[row][col]
             if (piece == 'white' and self.current_player == 'white') or (piece == 'black' and self.current_player == 'black'):
                 self.selected_piece = (row, col)
@@ -92,35 +94,32 @@ class Checkers:
         piece_color = self.board[row][col]
         is_king = piece_color.endswith('_king')
 
-        # Determine move direction
         if piece_color.startswith('white'):
-            directions = [(-1, -1), (-1, 1)]  # White moves up
+            directions = [(-1, -1), (-1, 1)]  
         else:
-            directions = [(1, -1), (1, 1)]  # Black moves down
-        
-        if is_king:
-            directions.extend([(1, -1), (1, 1), (-1, -1), (-1, 1)])  # Kings can move both directions
+            directions = [(1, -1), (1, 1)] 
 
-        # Normal moves
+        if is_king:
+            directions.extend([(1, -1), (1, 1), (-1, -1), (-1, 1)]) 
+
         for dr, dc in directions:
             new_row, new_col = row + dr, col + dc
             if 0 <= new_row < 8 and 0 <= new_col < 8 and self.board[new_row][new_col] is None:
                 moves.append((new_row, new_col))
 
-        # Capture moves
         for dr, dc in directions:
             new_row, new_col = row + dr * 2, col + dc * 2
             mid_row, mid_col = row + dr, col + dc
             if (0 <= new_row < 8 and 0 <= new_col < 8 and
                 self.board[new_row][new_col] is None and
+                mid_row >= 0 and mid_row < 8 and mid_col >= 0 and mid_col < 8 and 
                 self.board[mid_row][mid_col] is not None and
-                self.board[mid_row][mid_col] != piece_color):
+                self.board[mid_row][mid_col] != piece_color): 
                 moves.append((new_row, new_col))
 
         return moves
 
     def highlight_valid_moves(self):
-        # Highlight valid moves with adjusted size to fit the board squares perfectly
         for move in self.valid_moves:
             row, col = move
             x1, y1 = col * 80, row * 80  # Align exactly to the square
@@ -132,22 +131,22 @@ class Checkers:
             )
 
     def clear_highlight(self):
-        # Clear existing highlights
         self.canvas.delete("highlight")
 
     def move_piece(self, start, end):
         s_row, s_col = start
         e_row, e_col = end
-        self.board[e_row][e_col] = self.board[s_row][s_col]  # Move piece
-        self.board[s_row][s_col] = None  # Clear start position
+        self.board[e_row][e_col] = self.board[s_row][s_col] 
+        self.board[s_row][s_col] = None  
 
-        # Capture piece
         if abs(s_row - e_row) == 2:
             mid_row = (s_row + e_row) // 2
             mid_col = (s_col + e_col) // 2
-            self.board[mid_row][mid_col] = None  # Remove captured piece
+            captured_piece = self.board[mid_row][mid_col]
 
-        # Promote to king if piece reaches the last row
+            if captured_piece is not None and captured_piece != self.board[s_row][s_col]:
+                self.board[mid_row][mid_col] = None  
+
         if e_row == 0 and self.board[e_row][e_col] == 'white':
             self.board[e_row][e_col] = 'white_king'
         elif e_row == 7 and self.board[e_row][e_col] == 'black':
@@ -158,6 +157,32 @@ class Checkers:
 
     def switch_player(self):
         self.current_player = 'black' if self.current_player == 'white' else 'white'
+        self.turn_label.config(text=f"Current Turn: {self.current_player}")
+
+    def check_winner(self):
+        white_count = sum(row.count('white') + row.count('white_king') for row in self.board)
+        black_count = sum(row.count('black') + row.count('black_king') for row in self.board)
+
+        if white_count == 0:
+            self.show_winner("Black wins!")
+            return True
+        elif black_count == 0:
+            self.show_winner("White wins!")
+            return True
+        return False
+
+    def show_winner(self, winner):
+        messagebox.showinfo("Game Over", winner)
+        self.reset_game()
+
+    def reset_game(self):
+        self.board = self.create_board()
+        self.current_player = 'white'
+        self.selected_piece = None
+        self.valid_moves = []
+        self.clear_highlight()
+        self.draw_board()
+        self.draw_pieces()
         self.turn_label.config(text=f"Current Turn: {self.current_player}")
 
 if __name__ == "__main__":
